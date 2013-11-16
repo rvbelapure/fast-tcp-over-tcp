@@ -4,6 +4,10 @@
 #include <sys/types.h>          /* See NOTES */
 #include <sys/socket.h>
 
+#define SYN_FLAG 1
+#define ACK_FLAG 2
+#define FIN_FLAG 4
+
 int gt_listen(int sockfd, int backlog);
 int gt_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
@@ -17,6 +21,7 @@ struct tcp_packet
 	void *ubuf;
 	size_t ulen;
 	int uflags;
+	uint32_t gt_flags;
 };
 
 #endif
