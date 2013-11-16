@@ -42,6 +42,17 @@ int gt_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
 	int new_sockid = accept(sockfd, addr, addrlen);
 }
-ssize_t gt_send(int sockfd, const void *buf, size_t len, int flags) {}
-size_t gt_recv(int sockfd, void *buf, size_t len, int flags) {}
+
+ssize_t gt_send(int sockfd, const void *buf, size_t len, int flags) {
+	ssize_t ret;
+	ret = send(sockfd, buf, len, flags);
+	return ret;
+}
+
+ssize_t gt_recv(int sockfd, void *buf, size_t len, int flags) {
+	ssiz_t ret;
+	ret = recv(sockfd, buf, len, flags);
+	return ret;
+}
+
 int gt_close(int sockfd) {}
