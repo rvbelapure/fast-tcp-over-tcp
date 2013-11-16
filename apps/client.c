@@ -6,7 +6,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "tcp-base/tcp.h"
+#include "../tcp-base/tcp.h"
+
 
 void error(char *msg)
 {

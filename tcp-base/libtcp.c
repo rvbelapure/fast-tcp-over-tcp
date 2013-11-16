@@ -1,6 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include <stdint.h>
 #include "tcp.h"
 
 int gt_listen(int sockfd, int backlog) {

@@ -1,8 +1,7 @@
 CXX = gcc
-CXXFLAGS = -Wall -g
 
 all:
-	$(CXX) $(CXXFLAGS) -c libtcp.c
+	$(CXX) -c libtcp.c
 
 clean:
 	rm *.o

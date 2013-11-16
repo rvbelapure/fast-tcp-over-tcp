@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tcp-base/tcp.h"
+#include "../tcp-base/tcp.h"
 
 int main( int argc, char *argv[] )
 {
