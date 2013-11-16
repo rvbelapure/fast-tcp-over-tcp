@@ -2,17 +2,19 @@ CXX = gcc
 
 LIBDIR = tcp-base
 
-LIBTCP = libtcp.o
+all: client server
 
-all: client.o server.o
-	$(CXX) -o client client.o
-	$(CXX) -o server server.o
+client: client.o 
+	$(CXX) -o client client.o $(LIBDIR)/libtcp.o
 
-client.o:
-	$(CXX) -c client.c $(LIBDIR)/$(LIBTCP)
+server: server.o 
+	$(CXX) -o server server.o $(LIBDIR)/libtcp.o
+
+client.o: client.c
+	$(CXX) -c client.c
 
 server.o:
-	$(CXX) -c server.c $(LIBDIR)/$(LIBTCP)
+	$(CXX) -c server.c 
 
 clean:
 	rm client server *.o
