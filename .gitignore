@@ -1,0 +1,6 @@
+*.o
+client
+server
+
+
+tcp-base/*.o
