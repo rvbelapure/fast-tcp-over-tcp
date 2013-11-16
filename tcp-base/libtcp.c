@@ -6,12 +6,15 @@
 #include "tcputils.h"
 
 int gt_listen(int sockfd, int backlog) {
-
-	listen(sockfd, backlog);
+	int ret;
+	ret = listen(sockfd, backlog);
+	return ret;
 }
 int gt_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) 
 {
-	bind(sockfd, addr, addrlen);
+	int ret;
+	ret = bind(sockfd, addr, addrlen);
+	return ret;
 }
 int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
@@ -50,7 +53,7 @@ ssize_t gt_send(int sockfd, const void *buf, size_t len, int flags) {
 }
 
 ssize_t gt_recv(int sockfd, void *buf, size_t len, int flags) {
-	ssiz_t ret;
+	ssize_t ret;
 	ret = recv(sockfd, buf, len, flags);
 	return ret;
 }
