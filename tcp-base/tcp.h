@@ -20,7 +20,7 @@ int gt_close(int sockfd);
 
 typedef struct _tcp_packet 
 {
-	void *ubuf;
+	char *ubuf;
 	size_t ulen;
 	int uflags;
 	uint32_t gt_flags;
