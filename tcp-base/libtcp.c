@@ -1,6 +1,9 @@
 #include "tcp.h"
 
-int gt_listen(int sockfd, int backlog) {}
+int gt_listen(int sockfd, int backlog) {
+
+	listen(sockfd, backlog);
+}
 int gt_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {}
 int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {}
 int gt_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {}
