@@ -3,6 +3,7 @@
 
 #include <sys/types.h>          /* See NOTES */
 #include <sys/socket.h>
+#include <stdint.h>
 
 
 #define SYN_FLAG 1

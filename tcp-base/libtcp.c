@@ -2,6 +2,8 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <stdint.h>
+#include <stddef.h>
+
 #include "tcp.h"
 #include "tcputils.h"
 
@@ -20,24 +22,24 @@ int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
 	int sockfd_conn = connect(sockfd, addr, addrlen);
 
-	tcp_packet_t *syn_pkt = (tcp_packet_t *)malloc(sizeof(tcp_packet_t));
+	tcp_packet_t *syn_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	syn_pkt->ubuf = NULL;
 	syn_pkt->ulen = 0;
 	syn_pkt->uflags = 0;
-	syn_pkt->gt_flags = SYN_FLAG;
+	syn_pkt->gt_flags |= SYN_FLAG;
 	gt_send_size(sockfd_conn, (const void *)syn_pkt);
 //SYN is sent at this point
 
-	tcp_packet_t syn_ack_pkt = NULL;
+	tcp_packet_t *syn_ack_pkt = NULL;
 	gt_recv_size(sockfd_conn, syn_ack_pkt);
 	assert(syn_ack_pkt->gt_flags & (SYN_FLAG & ACK_FLAG) == 1);
 //SYN, ACK is received at this point
 
-	tcp_packet_t *ack_pkt = (tcp_packet_t *)malloc(sizeof(tcp_packet_t));
+	tcp_packet_t *ack_pkt = (tcp_packet_t *)calloc(sizeof(tcp_packet_t));
 	ack_pkt->ubuf = NULL;
 	ack_pkt->ulen = 0;
 	ack_pkt->uflags = 0;
-	ack_pkt->gt_flags = ACK_FLAG;
+	ack_pkt->gt_flags |= ACK_FLAG;
 	gt_send_size(sockfd_conn, (const void *)ack_pkt);
 }
 

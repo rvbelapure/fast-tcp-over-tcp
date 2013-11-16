@@ -5,10 +5,10 @@ LIBDIR = ../tcp-base
 all: client server
 
 client: client.o 
-	$(CXX) -o client client.o $(LIBDIR)/libtcp.o
+	$(CXX) -o client client.o $(LIBDIR)/libtcp.o $(LIBDIR)/tcputils.o
 
 server: server.o 
-	$(CXX) -o server server.o $(LIBDIR)/libtcp.o
+	$(CXX) -o server server.o $(LIBDIR)/libtcp.o $(LIBDIR)/tcputils.o
 
 client.o: client.c
 	$(CXX) -c client.c
