@@ -1,22 +1,13 @@
 CXX = gcc
 
-LIBDIR = tcp-base
+APPSDIR = apps
+TCPBASEDIR = tcp-base
 
-all: client server
-
-client: client.o 
-	$(CXX) -o client client.o $(LIBDIR)/libtcp.o
-
-server: server.o 
-	$(CXX) -o server server.o $(LIBDIR)/libtcp.o
-
-client.o: client.c
-	$(CXX) -c client.c
-
-server.o:
-	$(CXX) -c server.c 
+all:
+	cd $(TCPBASEDIR) && $(MAKE)
+	cd $(APPSDIR) && $(MAKE)
 
 clean:
-	rm client server *.o
-
-
+	cd $(APPSDIR) && $(MAKE) -C . clean
+	cd $(TCPBASEDIR) && $(MAKE) -C . clean
+	
