@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "tcp.h"
 #include "tcputils.h"
@@ -52,9 +53,13 @@ int gt_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 }
 
 ssize_t gt_send(int sockfd, const void *buf, size_t len, int flags) {
-	ssize_t ret;
-	ret = send(sockfd, buf, len, flags);
-	return ret;
+	tcp_packet_t *send_pkt = (tcp_packet_t *) calloc(1, sizeof(tcp_packet_t));
+	send_pkt->ubuf = (char *) malloc(len * sizeof(char));
+	memcpy(send_pkt->ubuf, buf, len);
+	send_pkt->ulen = len;
+	send_pkt->uflags = flags;
+	send_pkt->gt_flags = 0;
+	return gt_send_size(sockfd,send_pkt);
 }
 
 ssize_t gt_recv(int sockfd, void *buf, size_t len, int flags) {
