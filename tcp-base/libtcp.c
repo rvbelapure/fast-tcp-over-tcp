@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "tcp.h"
 #include "tcputils.h"
@@ -35,7 +36,7 @@ int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	assert((syn_ack_pkt->gt_flags & SYN_FLAG) && (syn_ack_pkt->gt_flags & ACK_FLAG));
 //SYN, ACK is received at this point
 
-	tcp_packet_t *ack_pkt = (tcp_packet_t *)calloc(sizeof(tcp_packet_t));
+	tcp_packet_t *ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	ack_pkt->ubuf = NULL;
 	ack_pkt->ulen = 0;
 	ack_pkt->uflags = 0;

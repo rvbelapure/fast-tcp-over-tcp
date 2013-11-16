@@ -1,9 +1,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdlib.h>
+
 #include "tcp.h"
 #include "tcputils.h"
 
-size_t gt_send_size(int sockfd, tcp_packet_t *packet) 
+size_t gt_send_size(int sockfd, const tcp_packet_t *packet) 
 {
 	size_t tosend, totalsent, sent;
 	send(sockfd, (void *) &(packet->ulen), sizeof(size_t), 0);
