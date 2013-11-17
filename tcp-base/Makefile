@@ -1,7 +1,7 @@
-CXX = gcc
+CC = gcc
 
 all:
-	$(CXX) -c libtcp.c tcputils.c
+	$(CC) -c libtcp.c tcputils.c
 
 clean:
-	rm *.o
+	rm -f *.o

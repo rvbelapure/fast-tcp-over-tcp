@@ -1,13 +1,10 @@
-CXX = gcc
-
 APPSDIR = apps
 TCPBASEDIR = tcp-base
 
 all:
-	cd $(TCPBASEDIR) && $(MAKE)
-	cd $(APPSDIR) && $(MAKE)
+	make -C $(TCPBASEDIR)
+	make -C $(APPSDIR)
 
 clean:
-	cd $(APPSDIR) && $(MAKE) -C . clean
-	cd $(TCPBASEDIR) && $(MAKE) -C . clean
-	
+	make -C $(TCPBASEDIR) clean
+	make -C $(APPSDIR) clean
