@@ -29,7 +29,7 @@ int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	syn_pkt->ulen = 0;
 	syn_pkt->uflags = 0;
 	syn_pkt->gt_flags |= SYN_FLAG;
-	gt_send_size(sockfd_conn, (const void *)syn_pkt);
+	gt_send_size(sockfd_conn, (void *)syn_pkt);
 //SYN is sent at this point
 
 	tcp_packet_t *syn_ack_pkt = NULL;
@@ -42,7 +42,7 @@ int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	ack_pkt->ulen = 0;
 	ack_pkt->uflags = 0;
 	ack_pkt->gt_flags |= ACK_FLAG;
-	gt_send_size(sockfd_conn, (const void *)ack_pkt);
+	gt_send_size(sockfd_conn, (void *)ack_pkt);
 
 	return sockfd_conn;
 }
@@ -57,7 +57,7 @@ int gt_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 	syn_pkt->ulen = 0;
 	syn_pkt->uflags = 0;
 	syn_pkt->gt_flags |= SYN_FLAG;
-	gt_recv_size(new_sockid, (const void *)syn_pkt);
+	gt_recv_size(new_sockid, (void *)syn_pkt);
 
 	//send ack 
 	tcp_packet_t *ack_pkt = (tcp_packet_t *)malloc(sizeof(tcp_packet_t));
@@ -65,11 +65,11 @@ int gt_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 	ack_pkt->ulen = 0;
 	ack_pkt->uflags = 0;
 	ack_pkt->gt_flags |= ACK_FLAG;
-	gt_send_size(new_sockid, (const void *)ack_pkt);
+	gt_send_size(new_sockid, (void *)ack_pkt);
 
 	//recv
-	tcp_packet_t syn_ack_pkt = NULL;
-	gt_recv_size(sockfd_conn, syn_ack_pkt);
+	tcp_packet_t *syn_ack_pkt = NULL;
+	gt_recv_size(new_sockid, syn_ack_pkt);
 	assert((syn_ack_pkt->gt_flags & SYN_FLAG) && (syn_ack_pkt->gt_flags & ACK_FLAG));
 
 	return new_sockid;
