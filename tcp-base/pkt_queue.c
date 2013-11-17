@@ -75,7 +75,7 @@ ssize_t sock_buffer_can_read(sock_buffer_t *head, int socket_id)
 
 	/* Can't read if this socket does not contain any buffer */
 	if(ptr == NULL)
-		return 0;
+		return -1;
 	
 	/* return the number of readable bytes */
 	return (ptr->length - ptr->offset);

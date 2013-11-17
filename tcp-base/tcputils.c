@@ -21,19 +21,19 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 	return totalsent;
 
 }
-size_t gt_recv_size(int sockfd, tcp_packet_t *packet) 
+size_t gt_recv_size(int sockfd, tcp_packet_t **packet) 
 {
 	size_t torecv, totalrcvd, rcvd;
 	recv(sockfd, &torecv, sizeof(size_t), 0);
 
-	packet = (tcp_packet_t *) malloc(sizeof(tcp_packet_t));
-	packet->ubuf = (char *) malloc(torecv * sizeof(char));
+	*packet = (tcp_packet_t *) malloc(sizeof(tcp_packet_t));
+	(*packet)->ubuf = (char *) malloc(torecv * sizeof(char));
 
 	totalrcvd = 0;
 	rcvd = 0;
 	while(totalrcvd < torecv)
 	{
-		rcvd = recv(sockfd, (void *) (((char *)packet) + totalrcvd), (torecv - totalrcvd), 0);
+		rcvd = recv(sockfd, (void *) (((char *) *packet) + totalrcvd), (torecv - totalrcvd), 0);
 		totalrcvd += rcvd;
 	}
 	return totalrcvd;

@@ -10,6 +10,7 @@
 #define ACK_FLAG 2
 #define FIN_FLAG 4
 
+void gt_init();
 int gt_listen(int sockfd, int backlog);
 int gt_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
