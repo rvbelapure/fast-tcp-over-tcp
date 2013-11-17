@@ -56,9 +56,9 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
 	}
 
 	/* allocate data */
+	torecv = udata_len;
 	(*packet)->ubuf = (char *) malloc(torecv * sizeof(char));
 	/* now receive the data */
-	torecv = udata_len;
 	totalrcvd = 0;
 	rcvd = 0;
 	while(totalrcvd < torecv)
