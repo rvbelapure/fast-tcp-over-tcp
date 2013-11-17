@@ -22,16 +22,20 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
+    gt_init();
+
     char buffer[256];
-    if (argc < 3) {
+/*    if (argc < 3) {
         fprintf(stderr,"usage %s hostname port\n", argv[0]);
         exit(0);
-    }
-    portno = atoi(argv[2]);
+    }*/
+//    portno = atoi(argv[2]);
+    portno = 5001;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
         error("ERROR opening socket");
-    server = gethostbyname(argv[1]);
+//    server = gethostbyname(argv[1]);
+    server = gethostbyname("localhost");
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);

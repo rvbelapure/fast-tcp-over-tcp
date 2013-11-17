@@ -14,6 +14,8 @@ int main( int argc, char *argv[] )
     struct sockaddr_in serv_addr, cli_addr;
     int  n;
 
+    gt_init();
+
     /* First call to socket() function */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 

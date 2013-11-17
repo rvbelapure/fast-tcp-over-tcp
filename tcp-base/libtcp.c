@@ -26,7 +26,8 @@ int gt_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 }
 int gt_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 
-	int sockfd_conn = connect(sockfd, addr, addrlen);
+	int sockfd_conn = sockfd;
+	connect(sockfd, addr, addrlen);
 
 	tcp_packet_t *syn_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	syn_pkt->ubuf = NULL;
