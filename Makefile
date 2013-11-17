@@ -1,8 +1,8 @@
 APPSDIR = apps
 TCPBASEDIR = tcp-base
 
-all:
-	make -C $(TCPBASEDIR)
+# only make in apps directory is sufficient as it will recursively build everything
+applications:
 	make -C $(APPSDIR)
 
 clean:
