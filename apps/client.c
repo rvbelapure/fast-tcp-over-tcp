@@ -17,12 +17,11 @@ void error(char *msg)
 
 int main(int argc, char *argv[])
 {
-    int sockfd, portno, n;
+    sock_descriptor_t * sockfd; 
+    int portno, n;
 
     struct sockaddr_in serv_addr;
     struct hostent *server;
-
-    gt_init();
 
     char buffer[256];
 /*    if (argc < 3) {
@@ -31,7 +30,7 @@ int main(int argc, char *argv[])
     }*/
 //    portno = atoi(argv[2]);
     portno = 5001;
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = gt_socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
         error("ERROR opening socket");
 //    server = gethostbyname(argv[1]);

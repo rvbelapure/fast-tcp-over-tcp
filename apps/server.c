@@ -9,15 +9,14 @@
 
 int main( int argc, char *argv[] )
 {
-    int sockfd, newsockfd, portno, clilen;
+    sock_descriptor_t *sockfd, *newsockfd;
+    int portno, clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int  n;
 
-    gt_init();
-
     /* First call to socket() function */
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = gt_socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
     {
         perror("ERROR opening socket");
