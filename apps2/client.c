@@ -108,7 +108,7 @@ main(int argc, char *argv[])
        n = gt_recv(sd, buf, sizeof(buf), 0);
      }
 
-   closesocket(sd);
+   gt_close(sd);
    exit(0);
 }
 

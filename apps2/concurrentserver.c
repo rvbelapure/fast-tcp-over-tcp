@@ -146,6 +146,6 @@ void * serverthread(void * parm)
    gt_send(tsd,buf,strlen(buf),0);
    gt_send(tsd,(output_buf),1024,0);
 
-   close(tsd);
+   gt_close(tsd);
    pthread_exit(0);
 }    
