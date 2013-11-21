@@ -77,3 +77,13 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
 	/* return the sizeof user data recvd. Its implicit that header will be received */
 	return totalrcvd;
 }
+
+uint32_t get_CCgen(){
+	//pthread_lock
+	if(CCgen == MAX_UINT_32)
+		CCgen = 1;
+	else 
+		CCgen++;
+	return CCgen;
+	//pthread_unlock
+}
