@@ -51,13 +51,20 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
 	rcvd = 0;
 	while(totalrcvd < torecv)
 	{
-		rcvd = recv(sockfd, (void *) (((char *) *packet) + totalrcvd), (torecv - totalrcvd), 0);
-		totalrcvd += rcvd;
+      
+     rcvd = recv(sockfd, (void *) (((char *) *packet) + totalrcvd), (torecv - totalrcvd), 0);
+	   if(rcvd == 0) {
+         (*packet)->ulen = 0;
+         (*packet)->ubuf = NULL;
+         return rcvd;
+     }    
+     totalrcvd += rcvd;
 	}
 
 	/* allocate data */
 	torecv = udata_len;
 	(*packet)->ubuf = (char *) malloc(torecv * sizeof(char));
+  (*packet)->ulen = udata_len;
 	/* now receive the data */
 	totalrcvd = 0;
 	rcvd = 0;
