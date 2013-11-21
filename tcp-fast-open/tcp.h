@@ -39,15 +39,23 @@ typedef struct _thread_args
 	ssize_t ulen;
 }thread_args_t;
 
+typedef struct handshake_params{
+	sock_descriptor_t *hs_sockfd;
+	sock_descriptor_t *app_sockfd;
+	void *app_func;
+	void *app_func_params;
+}handshake_params_t;
+
 sock_descriptor_t * gt_socket(int domain, int type, int protocol);
 int gt_listen(sock_descriptor_t * sockfd, int backlog);
 int gt_bind(sock_descriptor_t * sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen, unsigned long cookie, char * udata, ssize_t ulen);
-sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen);
+sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen, void *app_func, void *app_func_param);
 ssize_t gt_send(sock_descriptor_t * sockfd, const void *buf, size_t len, int flags);
 ssize_t gt_recv(sock_descriptor_t * sockfd, void *buf, size_t len, int flags);
 int gt_close(sock_descriptor_t * sockfd);
 
 void * gt_connect_handshake_thread(void * arguments);
+void * gt_accept_handshake_thread(void * arguments);
 
 #endif
