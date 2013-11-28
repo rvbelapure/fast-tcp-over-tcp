@@ -331,9 +331,17 @@ void * gt_accept_handshake_thread(void *arguments){
 	if( ! ((syn_pkt->gt_flags & COOKIE_REQUEST_FLAG) && (syn_pkt->gt_flags & FAST_OPEN_FLAG)) )
 		hs_param->server_app_args->tfo_aware_flag = 0;
 
-	
-	pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
+	if( ! (cookie_flags & COOKIE_APPROVED_FLAG))
+		pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
+
 	gt_close(hs_param->hs_sockfd);
+
+	if(cookie_flags & COOKIE_APPROVED_FLAG)
+	{
+		pthread_mutex_lock(&server_tfo_threshold_mutex);
+		active_tfo_connections--;
+		pthread_mutex_unlock(&server_tfo_threshold_mutex);
+	}
 
 	//malloc cleanup
 	free(hs_param);
