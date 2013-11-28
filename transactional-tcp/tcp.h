@@ -19,7 +19,8 @@ typedef enum
 {
 	CC,
 	CC_NEW,
-	CC_ECHO
+	CC_ECHO,
+	NO_CC
 } cc_flag_t;
 
 typedef struct  _cc_cache

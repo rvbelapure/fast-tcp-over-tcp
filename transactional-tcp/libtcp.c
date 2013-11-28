@@ -11,8 +11,33 @@
 
 uint32_t CCgen = 1;
 cc_cache_t cache;
+
 #ifdef __SERVER
+int *sockfd_list;
 uint32_t num_clients = 0;
+
+uint32_t get_client_id(int sockfd){
+	int sockfd_found = 0;
+	for(int i=0; i<MAX_PEERS; i++){
+		if(sockfd_list[i] == sockfd){
+			sockfd_found = 1;
+			break;
+		}
+	}
+	if((i== MAX_PEERS) && (sockfd_found == 0))
+		return -1; //Not found and no space left
+	if(sockfd_found)
+		return i;
+	if(sockfd_found == 0){
+		for(int i=0; i<MAX_PEERS; i++){
+			if(sockfd_list[i] == 0){
+				/*Found first empty slot*/
+				sockfd_list[i] = sockfd;
+				return i;
+			}
+		}
+	}
+}
 #endif
 
 void gt_init(){
@@ -20,6 +45,7 @@ void gt_init(){
 #ifdef __SERVER	
 	cache.CC = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
 	cache.CCsent = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
+	sockfd_list = (int *)calloc(MAX_PEERS, sizeof(int));
 #endif
 
 #ifdef __CLIENT	
@@ -183,17 +209,46 @@ void * gt_accept_handshake_thread(void *arguments){
 	tcp_packet_t *syn_pkt = NULL;
 	gt_recv_size(hs_param->hs_sockfd->sockfd, &syn_pkt);
 	assert(syn_pkt->gt_flags & SYN_FLAG);
+
+	/* T/TCP stuff */
+	uint32_t CCrecv = 0, CCsend;
+	CCsend = get_CCgen();
+	//Server may talk to multiple clients
+	//So server side CC cache will grow
+	cc_options_t cc_opt;
+
+	uint32_t client_id = get_client_id(hs_param->hs_sockfd->sockfd);
+
+	if((cache.CCsent[client_id] == 0)/*Haven't talked to this server before*/ 
+		|| (CCsend < cache.CCsent[client_id]) /*CCgen wrapped around due to too many transactions*/){
+		cc_opt.cc = CC_NEW;
+	} else {
+		cc_opt.cc = CC;
+	}
+
+	if((syn_pkt->cc_options.cc & CC) || (syn_pkt->cc_options.cc & CC_NEW)){
+		CCrecv = syn_pkt->cc_options.seg_cc;
+	}
+
+	int tao_test_ok = 0;
+	if((syn_pkt->cc_options.cc & CC) && (cache.CC[client_id] != 0) 
+		&& (syn_pkt->cc_options.seg_cc > cache.CC[client_id])){
+
+		/*TAO test OK*/
+		tao_test_ok = 1;
+		cache.CC[client_id] = CCrecv;
 	
-	int err = token_verify(syn_pkt);
-	//if return has error due to limit notify ???
-	//if token failed would return work
+		//int err = token_verify(syn_pkt);
+		//if return has error due to limit notify ???
+		//if token failed would return work
 
-	pthread_t app_thread;
+		pthread_t app_thread;
 
-	//how to keep data from syn_pkt in app_func_params ? TODO
+		//how to keep data from syn_pkt in app_func_params ? TODO
 
-	//start sending data in parallel swapn a send receive thread
-	pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->app_func_params);
+		//start sending data in parallel swapn a send receive thread
+		pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->app_func_params);
+	}
 
 	//send syn-ack 
 	tcp_packet_t *syn_ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
@@ -208,6 +263,16 @@ void * gt_accept_handshake_thread(void *arguments){
 	tcp_packet_t *ack_pkt = NULL;
 	gt_recv_size(hs_param->hs_sockfd->sockfd, &ack_pkt);
 	assert(ack_pkt->gt_flags & ACK_FLAG);
+
+	/*Normal TCP processing if TAO test had failed*/
+	if(tao_test_ok == 0){
+		pthread_t app_thread;
+
+		//how to keep data from syn_pkt in app_func_params ? TODO
+
+		//start sending data in parallel swapn a send receive thread
+		pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->app_func_params);
+	}
 	
 	//would assert fail means handshake failed ???
 	//have to send signal to the app_thread in failed case and then continue
