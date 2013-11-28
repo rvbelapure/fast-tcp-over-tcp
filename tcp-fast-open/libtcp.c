@@ -6,59 +6,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "tcp.h"
 #include "tcputils.h"
 
-int token_verify(tcp_packet_t *syn_pkt){
-	//should check mutex based allowed connection number
-	//if limit exceed return error
-}
+pthread_rwlock_t connect_cookie_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_rwlock_t server_key_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_mutex_t  server_tfo_threshold_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void * gt_accept_handshake_thread(void *arguments){
-	handshake_params_t *hs_param = (handshake_params_t *) arguments;
-	//recv syn + data packet
-	tcp_packet_t *syn_pkt = NULL;
-	gt_recv_size(hs_param->hs_sockfd->sockfd, &syn_pkt);
-	assert(syn_pkt->gt_flags & SYN_FLAG);
-	
-	int err = token_verify(syn_pkt);
-	//if return has error due to limit notify ???
-	//if token failed would return work
+unsigned long key;
+unsigned long active_tfo_connections;
 
-	pthread_t app_thread;
-
-	//how to keep data from syn_pkt in app_func_params ? TODO
-
-	//start sending data in parallel swapn a send receive thread
-	pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->app_func_params);
-
-	//send syn-ack 
-	tcp_packet_t *syn_ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
-	syn_ack_pkt->ubuf = NULL;
-	syn_ack_pkt->ulen = 0;
-	syn_ack_pkt->uflags = 0;
-	syn_ack_pkt->gt_flags |= SYN_FLAG;
-	syn_ack_pkt->gt_flags |= ACK_FLAG;
-	gt_send_size(new_sockfd->sockfd, (void *)syn_ack_pkt);
-
-	//recv ack packet
-	tcp_packet_t *ack_pkt = NULL;
-	gt_recv_size(new_sockfd->sockfd, &ack_pkt);
-	assert(ack_pkt->gt_flags & ACK_FLAG);
-	
-	//would assert fail means handshake failed ???
-	//have to send signal to the app_thread in failed case and then continue
-
-	close(hs_param->hs_sockfd->sockfd);
-
-	//malloc cleanup
-	free(hs_param->hs_sockfd);
-	free(hs_param);
-
-	return; // all good handshake is sucessful
-
-
+void gt_init()
+{
+	pthread_t t;
+	pthread_create(&t, NULL, key_updater, NULL);
 }
 
 sock_descriptor_t * gt_socket(int domain, int type, int protocol)
@@ -79,7 +42,7 @@ int gt_bind(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t ad
 	return bind(sockfd->sockfd, addr, addrlen);
 }
 int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen, 
-						unsigned long cookie, char * udata, ssize_t ulen) {
+						unsigned long *cookie, char * udata, ssize_t ulen) {
 	/* Create connection to socket owned by application thread of server.
 	 * This socket will be returned to client application.*/
 	int sockfd_conn = sockfd->sockfd;
@@ -97,9 +60,11 @@ int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t
 	pthread_t hs_thread;
 	thread_args_t *args = (thread_args_t *) calloc(1, sizeof(thread_args_t));
 	args->app_tid = pthread_self();
-	args->appd = *sockfd;
-	args->hsd = *hs;
+	args->app_sockfd = sockfd;
+	args->hs_sockfd = hs;
+	pthread_rwlock_rdlock(&connect_cookie_rwlock);
 	args->cookie = cookie;
+	pthread_rwlock_unlock(&connect_cookie_rwlock);
 	args->ulen = ulen;
 	args->udata = (char *) malloc(ulen * sizeof(char));
 	memcpy(args->udata, udata, ulen);
@@ -107,7 +72,7 @@ int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t
 	return 0;
 }
 
-sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, socklen_t *addrlen, void *app_func, void *app_func_params) 
+int gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, socklen_t *addrlen, void *app_func, server_app_args_t *server_app_args) 
 {
 	sock_descriptor_t * app_sockfd = (sock_descriptor_t *) malloc(sizeof(sock_descriptor_t));
 	app_sockfd->sockfd = accept(sockfd->sockfd, addr, addrlen);
@@ -116,7 +81,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	app_sockfd->length = 0;
 
 	if(app_sockfd->sockfd < 0)
-		return app_sockfd;
+		return 1;
 
 	sock_descriptor_t * hs_sockfd = (sock_descriptor_t *) malloc(sizeof(sock_descriptor_t));
 	hs_sockfd->sockfd = accept(sockfd->sockfd, addr, addrlen);
@@ -125,19 +90,20 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	hs_sockfd->length = 0;
 
 	if(hs_sockfd->sockfd < 0)
-		return hs_sockfd;
+		return 1;
 
+	server_app_args->tfo_aware_flag = 1;
 	//Thread data set
-	handshake_params_t *hs_params = (handshake_params_t *) malloc(sizeof(handshake_params_t));
+	thread_args_t *hs_params = (thread_args_t *) malloc(sizeof(thread_args_t));
 	hs_params->hs_sockfd = hs_sockfd;
 	hs_params->app_sockfd = app_sockfd;
 	hs_params->app_func = app_func;
-	hs_params->app_func_params = app_func_params;
+	hs_params->server_app_args = server_app_args;
 
 	pthread_t handshake_thread;
 
 	pthread_create(&handshake_thread, NULL, gt_accept_handshake_thread, hs_params);
-	return NULL;
+	return 0;
 }
 
 ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flags) {
@@ -210,39 +176,166 @@ void * gt_connect_handshake_thread(void * arguments)
 	tcp_packet_t *syn_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	syn_pkt->ulen = args->ulen;
 	syn_pkt->ubuf = (char *) malloc(args->ulen * sizeof(char));
-	memcpy(syn_pkt->ubuf, args->udata, args->ulen);
-	syn_pkt->cookie = args->cookie;
+	memcpy(syn_pkt->ubuf, args->udata, args->ulen);	
 	syn_pkt->uflags = 0;
 	syn_pkt->gt_flags |= SYN_FLAG;
-	if(syn_pkt->cookie)	syn_pkt->gt_flags |= COOKIE_REQ_FLAG;
-	else			syn_pkt->gt_flags |= FAST_OPEN_FLAG;
-
-	gt_send_size(args->hsd.sockfd, (void *)syn_pkt);
+	pthread_rwlock_rdlock(&connect_cookie_rwlock);
+	syn_pkt->cookie = *args->cookie;
+	unsigned long c = syn_pkt->cookie;
+	pthread_rwlock_unlock(&connect_cookie_rwlock);
+	if(c == 0)	syn_pkt->gt_flags |= COOKIE_REQUEST_FLAG;
+	else		syn_pkt->gt_flags |= FAST_OPEN_FLAG;
+	gt_send_size(args->hs_sockfd->sockfd, (void *)syn_pkt);
 //SYN is sent at this point
 
 	tcp_packet_t *syn_ack_pkt = NULL;
-	gt_recv_size(args->hsd.sockfd, &syn_ack_pkt);
+	gt_recv_size(args->hs_sockfd->sockfd, &syn_ack_pkt);
 	if(! ((syn_ack_pkt->gt_flags & SYN_FLAG) && (syn_ack_pkt->gt_flags & ACK_FLAG)) )
 	{
 		/* Failed handshake - close the connection(s) and die */
-		gt_close(&args->appd);
-		gt_close(&args->hsd);
+		gt_close(args->app_sockfd);
+		gt_close(args->hs_sockfd);
 		free(args);
 		pthread_exit(NULL);
 	}
 	//SYN, ACK is received at this point
 
 	/* gt_flags in syn_ack_pkt may or may not have FAST_OPEN_FLAG depending on whether
-	 * this is a Fast open or not */
+	 * this is a Fast open or not. Got cookie here if COOKIE_REQ_FLAG was set */
+	if(syn_ack_pkt->gt_flags & COOKIE_GENERATED_FLAG)
+	{
+		pthread_rwlock_wrlock(&connect_cookie_rwlock);
+		*(args->cookie) = syn_ack_pkt->cookie;
+		pthread_rwlock_unlock(&connect_cookie_rwlock);
+	}
 
 	tcp_packet_t *ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	ack_pkt->ubuf = NULL;
 	ack_pkt->ulen = 0;
 	ack_pkt->uflags = 0;
 	ack_pkt->gt_flags |= ACK_FLAG;
-	gt_send_size(args->hsd.sockfd, (void *)ack_pkt);
+	gt_send_size(args->hs_sockfd->sockfd, (void *)ack_pkt);
+	gt_close(args->hs_sockfd);
 
 	/* handshake successful - die silently */
 	free(args);
 	pthread_exit(NULL);
 }
+
+
+void * gt_accept_handshake_thread(void *arguments){
+	thread_args_t *hs_param = (thread_args_t *) arguments;
+
+	//recv syn + data packet
+	tcp_packet_t *syn_pkt = NULL;
+	gt_recv_size(hs_param->hs_sockfd->sockfd, &syn_pkt);
+	if( ! (syn_pkt->gt_flags & SYN_FLAG) )
+	{
+		/* Failed handshake - close the connection(s) and die */
+		gt_close(hs_param->app_sockfd);
+		gt_close(hs_param->hs_sockfd);
+		free(hs_param);
+		pthread_exit(NULL);
+	}
+
+	/* Fill data to application arguments */
+	hs_param->server_app_args->data = (char *) malloc(syn_pkt->ulen * sizeof(char));
+	memcpy(hs_param->server_app_args->data, syn_pkt->ubuf, syn_pkt->ulen);
+	hs_param->server_app_args->datalen = syn_pkt->ulen;
+	
+	/* SYN + Data + Cookie packet received */
+	pthread_t app_thread;
+	uint32_t cookie_flags = 0; 
+	unsigned long generated_cookie = 0;
+	if( syn_pkt->gt_flags & FAST_OPEN_FLAG)
+	{
+		/* Case : When client sends cookie + data and requests fast open */
+		if(cookie_verify(syn_pkt))
+		{
+			/* Server accepted the cookie */
+			pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
+			cookie_flags |= COOKIE_APPROVED_FLAG;
+		}
+		else
+		{
+			/* Cookie not valid */
+			cookie_flags |= COOKIE_REJECT_FLAG;
+		}
+
+	}
+	else if( syn_pkt->gt_flags & COOKIE_REQUEST_FLAG )
+	{
+		/* Cookie generation request */
+		generated_cookie = cookie_gen(syn_pkt);
+		if(generated_cookie == 0)
+		{
+			/* Fast open threshold reached. Cookie rejected */
+			cookie_flags |= COOKIE_REJECT_FLAG;
+		}
+		else
+		{
+			/* Server generated a new cookie */
+			cookie_flags |= COOKIE_GENERATED_FLAG;
+		}
+	}
+
+
+	//start sending data in parallel swapn a send receive thread
+
+	//send syn-ack 
+	tcp_packet_t *syn_ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
+	syn_ack_pkt->ubuf = NULL;
+	syn_ack_pkt->ulen = 0;
+	syn_ack_pkt->uflags = 0;
+	syn_ack_pkt->gt_flags |= SYN_FLAG;
+	syn_ack_pkt->gt_flags |= ACK_FLAG;
+	syn_ack_pkt->gt_flags |= cookie_flags;
+	if(cookie_flags & COOKIE_GENERATED_FLAG) syn_ack_pkt->cookie = generated_cookie;
+	gt_send_size(hs_param->hs_sockfd->sockfd, (void *)syn_ack_pkt);
+
+	//recv ack packet
+	tcp_packet_t *ack_pkt = NULL;
+	gt_recv_size(hs_param->hs_sockfd->sockfd, &ack_pkt);
+	if( ! (ack_pkt->gt_flags & ACK_FLAG) )
+	{
+		/* Handshake failure */
+		if(cookie_flags & COOKIE_APPROVED_FLAG)
+			pthread_kill(app_thread, SIGUSR1);
+		gt_close(hs_param->hs_sockfd);
+		free(hs_param);
+		pthread_exit(NULL);
+	}
+
+	if( ! ((syn_pkt->gt_flags & COOKIE_REQUEST_FLAG) && (syn_pkt->gt_flags & FAST_OPEN_FLAG)) )
+		hs_param->server_app_args->tfo_aware_flag = 0;
+
+	
+	pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
+	gt_close(hs_param->hs_sockfd);
+
+	//malloc cleanup
+	free(hs_param);
+	pthread_exit(NULL);
+
+}
+
+void * key_updater(void *t)
+{
+	while(1)
+	{
+		sleep(COOKIE_EXPIRY_TIMEOUT);
+		pthread_rwlock_wrlock(&server_key_rwlock);
+		key++;					// TODO XXX Update key using some function
+		if(key == 0) key++;
+		pthread_rwlock_unlock(&server_key_rwlock);
+	}
+}
+
+int cookie_verify(tcp_packet_t *syn_pkt)
+{
+}
+
+unsigned long cookie_gen(tcp_packet_t *syn_pkt)
+{
+}
+
