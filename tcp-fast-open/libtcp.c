@@ -7,13 +7,16 @@
 #include <string.h>
 #include <pthread.h>
 #include <signal.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <limits.h>
 
 #include "tcp.h"
 #include "tcputils.h"
 
 pthread_rwlock_t connect_cookie_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_rwlock_t server_key_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-pthread_mutex_t  server_tfo_threshold_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t server_tfo_threshold_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned long key;
 unsigned long active_tfo_connections;
@@ -21,6 +24,10 @@ unsigned long active_tfo_connections;
 void gt_init()
 {
 	pthread_t t;
+	active_tfo_connections = 0;
+	key = 0;
+	while(key != 0)
+		key = (unsigned long) random();
 	pthread_create(&t, NULL, key_updater, NULL);
 }
 
@@ -92,11 +99,14 @@ int gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, socklen_t *addrl
 	if(hs_sockfd->sockfd < 0)
 		return 1;
 
+	struct sockaddr_in *sa = (struct sockaddr_in *) &addr;
+
 	server_app_args->tfo_aware_flag = 1;
 	//Thread data set
 	thread_args_t *hs_params = (thread_args_t *) malloc(sizeof(thread_args_t));
 	hs_params->hs_sockfd = hs_sockfd;
 	hs_params->app_sockfd = app_sockfd;
+	hs_params->client_addr = (sa->sin_addr).s_addr;
 	hs_params->app_func = app_func;
 	hs_params->server_app_args = server_app_args;
 
@@ -208,6 +218,12 @@ void * gt_connect_handshake_thread(void * arguments)
 		*(args->cookie) = syn_ack_pkt->cookie;
 		pthread_rwlock_unlock(&connect_cookie_rwlock);
 	}
+	else if(syn_ack_pkt->gt_flags & COOKIE_INVALID_FLAG)
+	{
+		pthread_rwlock_wrlock(&connect_cookie_rwlock);
+		*(args->cookie) = 0;
+		pthread_rwlock_unlock(&connect_cookie_rwlock);
+	}
 
 	tcp_packet_t *ack_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	ack_pkt->ubuf = NULL;
@@ -250,23 +266,29 @@ void * gt_accept_handshake_thread(void *arguments){
 	if( syn_pkt->gt_flags & FAST_OPEN_FLAG)
 	{
 		/* Case : When client sends cookie + data and requests fast open */
-		if(cookie_verify(syn_pkt))
+		int status = cookie_verify(syn_pkt->cookie, hs_param->client_addr);
+		if(status > 0)
 		{
 			/* Server accepted the cookie */
 			pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
 			cookie_flags |= COOKIE_APPROVED_FLAG;
 		}
+		else if(status == 0)
+		{
+			/* Cookie valid but rejected due to too many open connections */
+			cookie_flags |= COOKIE_REJECT_FLAG;
+		}
 		else
 		{
-			/* Cookie not valid */
-			cookie_flags |= COOKIE_REJECT_FLAG;
+			/* cookie invalid */
+			cookie_flags |= COOKIE_INVALID_FLAG;
 		}
 
 	}
 	else if( syn_pkt->gt_flags & COOKIE_REQUEST_FLAG )
 	{
 		/* Cookie generation request */
-		generated_cookie = cookie_gen(syn_pkt);
+		generated_cookie = cookie_gen(hs_param->client_addr);
 		if(generated_cookie == 0)
 		{
 			/* Fast open threshold reached. Cookie rejected */
@@ -325,17 +347,53 @@ void * key_updater(void *t)
 	{
 		sleep(COOKIE_EXPIRY_TIMEOUT);
 		pthread_rwlock_wrlock(&server_key_rwlock);
-		key++;					// TODO XXX Update key using some function
-		if(key == 0) key++;
+		key = (unsigned long) random();
+		while((key == 0) || (key == LONG_MAX)) key = (unsigned long) random();
 		pthread_rwlock_unlock(&server_key_rwlock);
 	}
 }
 
-int cookie_verify(tcp_packet_t *syn_pkt)
+int cookie_verify(unsigned long cookie, unsigned long addr)
 {
+	/* returns -1 when cookie is invalid, 0 when too many active TFO connections
+	   and 1 when cookie is accepted */
+
+	/* first determine if the cookie is valid */
+	pthread_rwlock_rdlock(&server_key_rwlock);
+	if(cookie != (key ^ addr))
+	{
+		pthread_rwlock_unlock(&server_key_rwlock);
+		return -1;
+	}
+
+	/* now check if we are under ACTIVE_TFO_THRESHOLD */
+	pthread_mutex_lock(&server_tfo_threshold_mutex);
+	if(active_tfo_connections > ACTIVE_TFO_THRESHOLD)
+	{
+		pthread_mutex_unlock(&server_tfo_threshold_mutex);
+		pthread_rwlock_unlock(&server_key_rwlock);
+		return 0;
+	}
+
+	active_tfo_connections++;	/* safety check : we have lock on server_tfo_threshold_mutex */
+	/* it is implicit that we have recognized validity of TFO connection here */
+	pthread_mutex_unlock(&server_tfo_threshold_mutex);
+	pthread_rwlock_unlock(&server_key_rwlock);
+
+	return 1;
 }
 
-unsigned long cookie_gen(tcp_packet_t *syn_pkt)
+unsigned long cookie_gen(unsigned long addr)
 {
+	/* We give out cookies without much heed to ACTIVE_TFO_THRESHOLD. 
+	 * If there is sudden surge of connections due to high number of cookies
+	 * after this, they will be filtered by cookie verification function.
+	 * Thus, we generate the cookie safely */
+	unsigned long cookie = 0;
+	pthread_rwlock_rdlock(&server_key_rwlock);
+	cookie = key ^ addr;
+	pthread_rwlock_unlock(&server_key_rwlock);
+	assert(cookie != 0);	/* XXX if this happens frequently, then change the encryption function */
+	return cookie;		/* except for rare case where key == addr, cookie will be always non-zero */
 }
 
