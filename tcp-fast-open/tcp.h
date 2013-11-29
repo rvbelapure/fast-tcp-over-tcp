@@ -5,15 +5,17 @@
 #include <sys/socket.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #define SYN_FLAG 		1	/* SYN packet */
 #define ACK_FLAG 		2	/* ACK packet */
 #define FIN_FLAG 		4	/* FIN packet */
 #define COOKIE_REQUEST_FLAG 	8	/* Client requesting new cookie */
 #define COOKIE_GENERATED_FLAG 	16	/* Server generated and returned cookie */
-#define COOKIE_REJECT_FLAG 	32	/* Server rejected cookie / server rejected cookie generation */
-#define COOKIE_APPROVED_FLAG 	64	/* Server accepted client cookie */
-#define FAST_OPEN_FLAG		128	/* Client is sending cookie to request fast open */
+#define COOKIE_REJECT_FLAG 	32	/* Server rejected cookie due to too many open connections */
+#define COOKIE_INVALID_FLAG	64	/* server rejected invalid cookie */
+#define COOKIE_APPROVED_FLAG 	128	/* Server accepted client cookie */
+#define FAST_OPEN_FLAG		256	/* Client is sending cookie to request fast open */
 
 #define COOKIE_EXPIRY_TIMEOUT	300	/* Timeout in seconds */
 #define ACTIVE_TFO_THRESHOLD	50	/* Number of concurrent connections that can be in TFO phase at same time */
@@ -45,9 +47,10 @@ typedef struct _server_app_args
 
 typedef struct _thread_args
 {
-	pid_t app_tid;
+	pthread_t app_tid;
 	sock_descriptor_t *app_sockfd;
 	sock_descriptor_t *hs_sockfd;
+	unsigned long client_addr;
 	unsigned long *cookie;
 	char *udata;
 	ssize_t ulen;	
@@ -68,8 +71,8 @@ int gt_close(sock_descriptor_t * sockfd);
 void * gt_connect_handshake_thread(void * arguments);
 void * gt_accept_handshake_thread(void * arguments);
 
-int cookie_verify(tcp_packet_t *syn_pkt);
-unsigned long cookie_gen(tcp_packet_t *syn_pkt);
+int cookie_verify(unsigned long cookie, unsigned long addr);
+unsigned long cookie_gen(unsigned long addr);
 void * key_updater(void *t);
 
 #endif

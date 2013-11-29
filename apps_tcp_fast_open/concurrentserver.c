@@ -12,7 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../tcp-base/tcp.h"
+
+#include "../tcp-fast-open/tcp.h"
 
 void * serverthread(void * parm);       /* thread function prototype    */
 
@@ -52,7 +53,7 @@ main (int argc, char *argv[])
      struct   protoent  *ptrp;     /* pointer to a protocol table entry */
      struct   sockaddr_in sad;     /* structure to hold server's address */
      struct   sockaddr_in cad;     /* structure to hold client's address */
-     sock_descriptor_t*      sd, sd2;             /* socket descriptors */
+     sock_descriptor_t *sd, *sd2;             /* socket descriptors */
      int      port;                /* protocol port number */
      int      alen;                /* length of address */
      pthread_t  tid;             /* variable to hold thread ID */
@@ -106,29 +107,32 @@ main (int argc, char *argv[])
 
      alen = sizeof(cad);
 
+     server_app_args_t* server_app_args = (server_app_args_t*) malloc(sizeof(server_app_args_t));
+     server_app_args -> app_func_params = sd;
+
      /* Main server loop - accept and handle requests */
      fprintf( stderr, "Server up and running.\n");
      while (1) {
 
          printf("SERVER: Waiting for contact ...\n");
          
-         if (  (sd2=gt_accept(sd, (struct sockaddr *)&cad, &alen)) < 0) {
-	                      fprintf(stderr, "accept failed\n");
-                              exit (1);
-	 }
-	 pthread_create(&tid, NULL, serverthread, (void *) sd2 );
+         if (gt_accept(sd, (struct sockaddr *)&cad, &alen,(void*) serverthread, server_app_args) < 0) {
+	          fprintf(stderr, "accept failed\n");
+            exit (1);
+      	 }
      }
-     close(sd);
+     gt_close(sd);
 }
 
 
 void * serverthread(void * parm)
 {
-   int tsd, tvisits;
+   sock_descriptor_t* tsd;
+   int tvisits;
    char     buf[100];           /* buffer for string the server sends */
    char output_buf[1024];
 
-   tsd = (int) parm;
+   tsd = (sock_descriptor_t*) parm;
 
    pthread_mutex_lock(&mut);
         tvisits = ++visits;
@@ -138,12 +142,12 @@ void * serverthread(void * parm)
 	   tvisits, tvisits==1?".":"s.");
 
    printf("SERVER thread: %s", buf);
-   int n = recv(tsd, output_buf, 1024, 0);
+   int n = gt_recv(tsd, output_buf, 1024, 0);
    printf("Server received:%s\n", output_buf);
 
-   send(tsd,buf,strlen(buf),0);
-   send(tsd,(output_buf),1024,0);
+   gt_send(tsd,buf,strlen(buf),0);
+   gt_send(tsd,(output_buf),1024,0);
 
-   close(tsd);
+   gt_close(tsd);
    pthread_exit(0);
 }    
