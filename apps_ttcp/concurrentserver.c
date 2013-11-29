@@ -15,6 +15,8 @@
 
 #include "../tcp-base/tcp.h"
 
+#define __SERVER
+
 void * serverthread(void * parm);       /* thread function prototype    */
 
 pthread_mutex_t  mut;

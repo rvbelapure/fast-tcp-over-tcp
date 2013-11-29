@@ -18,6 +18,8 @@
 #define closesocket      close
 #define PROTOPORT        5193        /* default protocol port number */
 
+#define __CLIENT
+
 extern int               errno;
 char   localhost[] = "localhost";    /* default host name            */
 /*---------------------------------------------------------------------
