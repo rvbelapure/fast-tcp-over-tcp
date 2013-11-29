@@ -12,46 +12,22 @@
 uint32_t CCgen = 1;
 cc_cache_t cache;
 
-#ifdef __SERVER
+//#ifdef __SERVER
 int *sockfd_list;
-uint32_t num_clients = 0;
-
-uint32_t get_client_id(int sockfd){
-	int sockfd_found = 0;
-	for(int i=0; i<MAX_PEERS; i++){
-		if(sockfd_list[i] == sockfd){
-			sockfd_found = 1;
-			break;
-		}
-	}
-	if((i== MAX_PEERS) && (sockfd_found == 0))
-		return -1; //Not found and no space left
-	if(sockfd_found)
-		return i;
-	if(sockfd_found == 0){
-		for(int i=0; i<MAX_PEERS; i++){
-			if(sockfd_list[i] == 0){
-				/*Found first empty slot*/
-				sockfd_list[i] = sockfd;
-				return i;
-			}
-		}
-	}
-}
-#endif
+//#endif
 
 void gt_init(){
 
-#ifdef __SERVER	
+//#ifdef __SERVER	
 	cache.CC = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
 	cache.CCsent = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
 	sockfd_list = (int *)calloc(MAX_PEERS, sizeof(int));
-#endif
+//#endif
 
-#ifdef __CLIENT	
-	cache.CC = (uint32_t *)calloc(1, sizeof(uint32_t));
-	cache.CCsent = (uint32_t *)calloc(1, sizeof(uint32_t));
-#endif
+//#ifdef __CLIENT	
+//	cache.CC = (uint32_t *)calloc(1, sizeof(uint32_t));
+//	cache.CCsent = (uint32_t *)calloc(1, sizeof(uint32_t));
+//#endif
 
 }
 

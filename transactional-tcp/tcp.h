@@ -14,6 +14,7 @@
 #define MAX_PEERS 100
 
 extern uint32_t CCgen;
+extern int *sockfd_list;
 
 typedef enum
 {
