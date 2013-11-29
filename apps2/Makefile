@@ -1,7 +1,7 @@
 CC = gcc
 CCFLAGS= -g
-LIBDIR= ../tcp-fast-open
-TCPLIB= ../tcp-fast-open/gt-tcplib.o
+LIBDIR= ../tcp-base
+TCPLIB= ../tcp-base/gt-tcplib.o
 
 all: client server
 
