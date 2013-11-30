@@ -87,6 +87,8 @@ main (int argc, char *argv[])
                      exit (1);
      }
 
+     gt_init();
+
      /* Create a socket */
      sd = gt_socket (PF_INET, SOCK_STREAM, ptrp->p_proto);
      if (sd < 0) {
