@@ -53,6 +53,9 @@ int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t
 	ack_pkt->gt_flags |= ACK_FLAG;
 	gt_send_size(sockfd_conn, (void *)ack_pkt);
 
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);
 	return err;
 }
 
@@ -65,7 +68,10 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	new_sockfd->length = 0;
 
 	if(new_sockfd->sockfd < 0)
-		return new_sockfd;
+	{
+		free(new_sockfd);
+		return NULL;
+	}
 
 	//recv syn packet
 	tcp_packet_t *syn_pkt = NULL;
@@ -86,6 +92,10 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	gt_recv_size(new_sockfd->sockfd, &ack_pkt);
 	assert(ack_pkt->gt_flags & ACK_FLAG);
 
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);
+
 	return new_sockfd;
 }
 
@@ -100,18 +110,29 @@ ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flag
 }
 
 ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
+	if(sockfd == NULL)
+		return -1;
 	/* check if we have anything to return from buffer */
 	ssize_t available = sockfd->length - sockfd->offset;
+	ssize_t retval;
 	if(available <= 0)
 	{
 		/* we don't have any data in the buffer. 
 		 * So we get the data, put it in buffer and return the required amount */
 		tcp_packet_t *pkt = NULL;
-		gt_recv_size(sockfd->sockfd, &pkt);
+		retval = gt_recv_size(sockfd->sockfd, &pkt);
 		sockfd->data = (char *) malloc(pkt->ulen * sizeof(char));
 		sockfd->length = pkt->ulen;
 		sockfd->offset = 0;
 		memcpy(sockfd->data, pkt->ubuf, pkt->ulen);
+		if(retval <= 0)
+		{
+			free(sockfd->data);
+			sockfd->data = NULL;
+			sockfd->offset = 0;
+			sockfd->length = 0;
+			return retval;
+		}
 	}
 
 	/* we can return something from the buffer now.*/
