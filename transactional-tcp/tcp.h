@@ -53,7 +53,8 @@ typedef struct _sock_descriptor
 	char *data;
 	ssize_t offset;
 	ssize_t length;
-	uint32_t CCnumber;
+	uint32_t CCnumber; //Used for T/TCP
+	int half_synchronized_flag; //Used for T/TCP
 }sock_descriptor_t;
 
 typedef struct _server_app_args
@@ -83,7 +84,7 @@ sock_descriptor_t * gt_socket(int domain, int type, int protocol);
 int gt_listen(sock_descriptor_t * sockfd, int backlog);
 int gt_bind(sock_descriptor_t * sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen, 
-	unsigned long cookie, char * udata, ssize_t ulen);
+	unsigned long *cookie, char * udata, ssize_t ulen);
 //sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen);
 sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen, 
 	void *app_func, server_app_args_t *server_app_args);
@@ -95,5 +96,5 @@ void * gt_connect_handshake_thread(void * arguments);
 void * gt_accept_handshake_thread(void * arguments);
 
 uint32_t cc_gen();
-uint32_t get_client_id(int sockfd);
+uint32_t get_client_id(unsigned long sockfd);
 #endif
