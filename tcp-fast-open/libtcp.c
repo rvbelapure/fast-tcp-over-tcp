@@ -102,6 +102,7 @@ int gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, socklen_t *addrl
 	struct sockaddr_in *sa = (struct sockaddr_in *) &addr;
 
 	server_app_args->tfo_aware_flag = 1;
+	server_app_args->app_sockfd = app_sockfd;
 	//Thread data set
 	thread_args_t *hs_params = (thread_args_t *) malloc(sizeof(thread_args_t));
 	hs_params->hs_sockfd = hs_sockfd;
@@ -125,7 +126,9 @@ ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flag
 	send_pkt->ulen = len;
 	send_pkt->uflags = flags;
 	send_pkt->gt_flags = 0;
-	return gt_send_size(sockfd->sockfd,send_pkt);
+	ssize_t ret = gt_send_size(sockfd->sockfd,send_pkt);
+	free(send_pkt);
+	return ret;
 }
 
 ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
@@ -133,16 +136,25 @@ ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
 		return -1;
 	/* check if we have anything to return from buffer */
 	ssize_t available = sockfd->length - sockfd->offset;
+	ssize_t retval;
 	if(available <= 0)
 	{
 		/* we don't have any data in the buffer. 
 		 * So we get the data, put it in buffer and return the required amount */
 		tcp_packet_t *pkt = NULL;
-		gt_recv_size(sockfd->sockfd, &pkt);
+		retval = gt_recv_size(sockfd->sockfd, &pkt);
 		sockfd->data = (char *) malloc(pkt->ulen * sizeof(char));
 		sockfd->length = pkt->ulen;
 		sockfd->offset = 0;
 		memcpy(sockfd->data, pkt->ubuf, pkt->ulen);
+		if(retval <= 0)
+		{
+			free(sockfd->data);
+			sockfd->data = NULL;
+			sockfd->offset = 0;
+			sockfd->length = 0;
+			return retval;
+		}
 	}
 
 	/* we can return something from the buffer now.*/
@@ -206,6 +218,8 @@ void * gt_connect_handshake_thread(void * arguments)
 		gt_close(args->app_sockfd);
 		gt_close(args->hs_sockfd);
 		free(args);
+		free(syn_pkt);
+		free(syn_ack_pkt);
 		pthread_exit(NULL);
 	}
 	//SYN, ACK is received at this point
@@ -235,6 +249,9 @@ void * gt_connect_handshake_thread(void * arguments)
 
 	/* handshake successful - die silently */
 	free(args);
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);
 	pthread_exit(NULL);
 }
 
@@ -251,6 +268,7 @@ void * gt_accept_handshake_thread(void *arguments){
 		gt_close(hs_param->app_sockfd);
 		gt_close(hs_param->hs_sockfd);
 		free(hs_param);
+		free(syn_pkt);
 		pthread_exit(NULL);
 	}
 
@@ -325,6 +343,9 @@ void * gt_accept_handshake_thread(void *arguments){
 			pthread_kill(app_thread, SIGUSR1);
 		gt_close(hs_param->hs_sockfd);
 		free(hs_param);
+		free(syn_pkt);
+		free(syn_ack_pkt);
+		free(ack_pkt);
 		pthread_exit(NULL);
 	}
 
@@ -345,6 +366,9 @@ void * gt_accept_handshake_thread(void *arguments){
 
 	//malloc cleanup
 	free(hs_param);
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);
 	pthread_exit(NULL);
 
 }

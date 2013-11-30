@@ -9,7 +9,7 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 {
 	size_t tosend, totalsent, sent;
 	/* send size of data. We don't need to send sizeof header as its known at compile time */
-	send(sockfd, (void *) &(packet->ulen), sizeof(size_t), 0);
+//	send(sockfd, (void *) &(packet->ulen), sizeof(size_t), 0);
 
 	/* send header first */
 	tosend =  sizeof(tcp_packet_t);
@@ -38,9 +38,9 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 }
 size_t gt_recv_size(int sockfd, tcp_packet_t **packet) 
 {
-	size_t torecv, totalrcvd, rcvd, udata_len;;
+	size_t torecv, totalrcvd, rcvd;
 	/* receive size of user data */
-	recv(sockfd, &udata_len, sizeof(size_t), 0);
+//	recv(sockfd, &udata_len, sizeof(size_t), 0);
 
 	/* allocate packet */
 	*packet = (tcp_packet_t *) malloc(sizeof(tcp_packet_t));
@@ -51,20 +51,21 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
 	rcvd = 0;
 	while(totalrcvd < torecv)
 	{
-      
-     rcvd = recv(sockfd, (void *) (((char *) *packet) + totalrcvd), (torecv - totalrcvd), 0);
-	   if(rcvd == 0) {
-         (*packet)->ulen = 0;
-         (*packet)->ubuf = NULL;
-         return rcvd;
-     }    
-     totalrcvd += rcvd;
+
+		rcvd = recv(sockfd, (void *) (((char *) *packet) + totalrcvd), (torecv - totalrcvd), 0);
+		/* TODO : to check whether this is what we really want to do */
+		if(rcvd <= 0) 
+		{
+			(*packet)->ulen = 0;
+			(*packet)->ubuf = NULL;
+			return rcvd;
+		}
+		totalrcvd += rcvd;
 	}
 
 	/* allocate data */
-	torecv = udata_len;
+	torecv = (*packet)->ulen;
 	(*packet)->ubuf = (char *) malloc(torecv * sizeof(char));
-  (*packet)->ulen = udata_len;
 	/* now receive the data */
 	totalrcvd = 0;
 	rcvd = 0;
