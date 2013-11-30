@@ -91,14 +91,15 @@ main(int argc, char *argv[])
    input_buf[1024] =  '\0';
 
    printf("%s\n", input_buf);
+   unsigned long cookie = 0;
    
-   if (gt_connect(sd, (struct sockaddr *)&sad, sizeof(sad), 0, input_buf, strlen(input_buf)) < 0)
-     { fprintf( stderr, "connect failed\n");
+   if (gt_connect(sd, (struct sockaddr *)&sad, sizeof(sad), &cookie, input_buf, strlen(input_buf)) < 0)
+   { fprintf( stderr, "connect failed\n");
        exit(1);
-     }
+   }
 
 
-   gt_send(sd,input_buf,1024,0);
+//   gt_send(sd,input_buf,1024,0);
    n = gt_recv(sd, buf, sizeof(buf), 0);
    n = gt_recv(sd, input_buf, 1024, 0);
    while(n > 0)
