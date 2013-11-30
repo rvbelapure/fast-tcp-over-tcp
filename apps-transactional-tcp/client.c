@@ -82,6 +82,8 @@ main(int argc, char *argv[])
        exit(1);
      }
 
+   gt_init();   
+
    sd = gt_socket(PF_INET, SOCK_STREAM, ptrp->p_proto);
    if (sd < 0)
      { fprintf( stderr, "socket creation failed\n");
@@ -99,7 +101,7 @@ main(int argc, char *argv[])
      }
 
 
-   gt_send(sd,input_buf,1024,0);
+   //gt_send(sd,input_buf,1024,0);
    n = gt_recv(sd, buf, sizeof(buf), 0);
    n = gt_recv(sd, input_buf, 1024, 0);
    while(n > 0)

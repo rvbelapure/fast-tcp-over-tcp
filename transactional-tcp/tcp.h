@@ -61,7 +61,8 @@ typedef struct _server_app_args
 {
 	char *data;
 	ssize_t datalen;
-	int  tfo_aware_flag; //Unused for T/T
+	int  tfo_aware_flag; //Unused for T/TCP
+	sock_descriptor_t *app_sockfd;
 	void *app_func_params;
 }server_app_args_t;
 

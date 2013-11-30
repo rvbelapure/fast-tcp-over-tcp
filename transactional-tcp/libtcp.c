@@ -27,11 +27,13 @@ pthread_rwlock_t half_synchronized_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 void gt_init(){
 
+	printf("gt_init starting\n");
 //#ifdef __SERVER	
 	cache.CC = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
 	cache.CCsent = (uint32_t *)calloc(MAX_PEERS, sizeof(uint32_t));
 	addr_list = (int *)calloc(MAX_PEERS, sizeof(int));
 //#endif
+	printf("gt_init done\n");
 
 //#ifdef __CLIENT	
 //	cache.CC = (uint32_t *)calloc(1, sizeof(uint32_t));

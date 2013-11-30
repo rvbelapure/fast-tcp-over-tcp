@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "../tcp-base/tcp.h"
+#include "../transactional-tcp/tcp.h"
 
 void * serverthread(void * parm);       /* thread function prototype    */
 
@@ -79,6 +79,8 @@ main (int argc, char *argv[])
                       fprintf (stderr, "bad port number %s/n",argv[1]);
                       exit (1);
      }
+
+     gt_init();
 
      /* Map TCP transport protocol name to protocol number */
      
