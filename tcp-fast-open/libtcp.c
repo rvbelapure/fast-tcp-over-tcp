@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -290,6 +291,7 @@ void * gt_accept_handshake_thread(void *arguments){
 			/* Server accepted the cookie */
 			pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
 			cookie_flags |= COOKIE_APPROVED_FLAG;
+			printf("cookie accepted\n");
 		}
 		else if(status == 0)
 		{
@@ -353,7 +355,10 @@ void * gt_accept_handshake_thread(void *arguments){
 		hs_param->server_app_args->tfo_aware_flag = 0;
 
 	if( ! (cookie_flags & COOKIE_APPROVED_FLAG))
+	{
+		printf("without cookie\n");
 		pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
+	}
 
 	gt_close(hs_param->hs_sockfd);
 

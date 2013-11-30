@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -98,10 +99,21 @@ int main(int argc, char *argv[])
    float y, t;
    unsigned long cookie = 0;
 
-   struct timespec ts;
    srandom(time(NULL));
 
+   FILE *results = fopen("tfo-results.txt", "w");
+   if(results == NULL)
+   {
+	   perror("results file");
+	   exit(1);
+   }
+
+   struct timespec ts;
+   struct timeval start, stop, diff, total;
+   timerclear(&total);
+
    size_t count = 0;
+
    while(count < EXPERIMENT_COUNT)
    {
 	if(getline(&stream, &stsize, fp) == -1)
@@ -116,6 +128,7 @@ int main(int argc, char *argv[])
 	stream = NULL;
 	nanosleep(&ts, NULL);
 
+	gettimeofday(&start, NULL);
 	sd = gt_socket(PF_INET, SOCK_STREAM, ptrp->p_proto);
 	if (sd < 0)
 	{ 
@@ -125,23 +138,31 @@ int main(int argc, char *argv[])
 
 	sprintf(input_buf, "page%ld.html", (random() % PAGE_COUNT));
 	fprintf(stdout, "client : getting %s... ", input_buf);
+	cookie = 0;
+	printf("cookie : %lu ", cookie);
 	if (gt_connect(sd, (struct sockaddr *)&sad, sizeof(sad), &cookie, input_buf, strlen(input_buf)) < 0)
 	{
 		perror("gt_connect");
 		gt_close(sd);
 		continue;
 	}
-
 	while(gt_recv(sd, input_buf, 1024, 0) > 0);
 	fprintf(stdout, "done\n");
 	gt_close(sd);
+	gettimeofday(&stop, NULL);
+
+	timersub(&stop, &start, &diff);
+	timeradd(&diff, &total, &total);
+
+	fprintf(results, "%ld.%ld\n", diff.tv_sec, diff.tv_usec);
 
 	count++;
    }
-   
+
+   fprintf(stderr, "Total time taken : %ld.%ld\n", total.tv_sec, total.tv_usec);
+   fprintf(stderr, "Total connections : %d\n", count);
    fclose(fp);
+   fclose(results);
    return 0;   
 }
-
-
 
