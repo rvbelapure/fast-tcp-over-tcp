@@ -77,37 +77,3 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
 	/* return the sizeof user data recvd. Its implicit that header will be received */
 	return totalrcvd;
 }
-
-uint32_t get_CCgen(){
-	//pthread_lock
-	if(CCgen == MAX_UINT_32)
-		CCgen = 1;
-	else 
-		CCgen++;
-	return CCgen;
-	//pthread_unlock
-}
-
-uint32_t get_client_id(int sockfd){
-	int sockfd_found = 0;
-	int i;
-	for(i=0; i<MAX_PEERS; i++){
-		if(sockfd_list[i] == sockfd){
-			sockfd_found = 1;
-			break;
-		}
-	}
-	if((i== MAX_PEERS) && (sockfd_found == 0))
-		return -1; //Not found and no space left
-	if(sockfd_found)
-		return i;
-	if(sockfd_found == 0){
-		for(i=0; i<MAX_PEERS; i++){
-			if(sockfd_list[i] == 0){
-				/*Found first empty slot*/
-				sockfd_list[i] = sockfd;
-				return i;
-			}
-		}
-	}
-}
