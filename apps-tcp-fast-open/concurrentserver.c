@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "../tcp-fast-open/tcp.h"
 
@@ -95,7 +96,8 @@ main (int argc, char *argv[])
 
      /* Bind a local address to the socket */
      if (gt_bind(sd, (struct sockaddr *)&sad, sizeof (sad)) < 0) {
-                        fprintf(stderr,"bind failed\n");
+	     		perror("bind failed");
+//                        fprintf(stderr,"bind failed\n");
                         exit(1);
      }
 
@@ -127,13 +129,13 @@ main (int argc, char *argv[])
 
 void * serverthread(void * parm)
 {
-
+   server_app_args_t *args = (server_app_args_t *) parm;
    sock_descriptor_t* tsd;
    int tvisits;
    char     buf[100];           /* buffer for string the server sends */
    char output_buf[1024];
 
-   tsd = (sock_descriptor_t*) parm;
+   tsd = (sock_descriptor_t*) args->app_sockfd;
 
    pthread_mutex_lock(&mut);
         tvisits = ++visits;
@@ -143,7 +145,9 @@ void * serverthread(void * parm)
 	   tvisits, tvisits==1?".":"s.");
 
    printf("SERVER thread: %s", buf);
-   int n = gt_recv(tsd, output_buf, 1024, 0);
+//   int n = gt_recv(tsd, output_buf, 1024, 0);
+   int tocopy = (args->datalen < 1204) ? args->datalen : 1024;
+   memcpy(output_buf, args->data, tocopy);
    printf("Server received:%s\n", output_buf);
 
    gt_send(tsd,buf,strlen(buf),0);
