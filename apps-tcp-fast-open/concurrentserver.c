@@ -127,6 +127,7 @@ main (int argc, char *argv[])
 
 void * serverthread(void * parm)
 {
+
    sock_descriptor_t* tsd;
    int tvisits;
    char     buf[100];           /* buffer for string the server sends */
