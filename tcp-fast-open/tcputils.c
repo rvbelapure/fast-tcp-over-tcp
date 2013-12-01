@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "tcp.h"
 #include "tcputils.h"
@@ -10,6 +11,12 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 	size_t tosend, totalsent, sent;
 	/* send size of data. We don't need to send sizeof header as its known at compile time */
 //	send(sockfd, (void *) &(packet->ulen), sizeof(size_t), 0);
+
+	/* Introduce RTT delays */
+	struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 0;
+	nanosleep(&ts, 0);
 
 	/* send header first */
 	tosend =  sizeof(tcp_packet_t);
