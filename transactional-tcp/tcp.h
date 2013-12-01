@@ -15,6 +15,10 @@
 
 #define MAX_PEERS 100
 
+extern pthread_mutex_t ccgen_mutex;
+extern pthread_mutex_t addr_list_mutex;
+extern pthread_mutex_t half_synchronized_mutex;
+
 typedef enum
 {
 	CC,

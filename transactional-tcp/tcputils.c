@@ -21,6 +21,17 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 		totalsent += sent;
 	}
 
+#ifdef __CLIENT
+	pthread_mutex_lock(&half_synchronized_mutex);
+	if(sockfd->half_synchronized_flag){
+		cc_options_t cc_options;
+		cc_options.cc = CC;
+		cc_options.seg_cc = sockfd->CCnumber;
+		send_pkt->cc_options = cc_options;
+	}
+	pthread_mutex_unlock(&half_synchronized_mutex);
+#endif	
+
 	/* now send the data. This is needed as our packet holds only a pointer to data,
 	   and thus does not serialize it */
 	tosend =  packet->ulen;
@@ -60,6 +71,17 @@ size_t gt_recv_size(int sockfd, tcp_packet_t **packet)
      }    
      totalrcvd += rcvd;
 	}
+
+#ifdef __SERVER
+	pthread_mutex_lock(&half_synchronized_mutex);
+	if(sockfd->half_synchronized_flag){
+		if((packet->cc_options.cc != CC) || 
+			((packet->cc_options.cc == CC) && (packet->cc_options.seg_cc != sockfd->CCnumber))){
+			return 0;
+		}	
+	}
+	pthread_mutex_unlock(&half_synchronized_mutex);
+#endif	
 
 	/* allocate data */
 	torecv = udata_len;

@@ -23,7 +23,7 @@ int *addr_list;
 
 pthread_mutex_t ccgen_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t addr_list_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_rwlock_t half_synchronized_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t half_synchronized_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void gt_init(){
 
@@ -157,16 +157,7 @@ ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flag
 	send_pkt->ulen = len;
 	send_pkt->uflags = flags;
 	send_pkt->gt_flags = 0;
-#ifdef __CLIENT
-	pthread_mutex_lock(&half_synchronized_mutex);
-	if(sockfd->half_synchronized_flag){
-		cc_options_t cc_options;
-		cc_options.cc = CC;
-		cc_options.seg_cc = sockfd->CCnumber;
-		send_pkt->cc_options = cc_options;
-	}
-	pthread_mutex_unlock(&half_synchronized_mutex);
-#endif	
+
 	ssize_t ret = gt_send_size(sockfd->sockfd,send_pkt);
 	free(send_pkt);
 	return ret;	
@@ -184,16 +175,7 @@ ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
 		 * So we get the data, put it in buffer and return the required amount */
 		tcp_packet_t *pkt = NULL;
 		gt_recv_size(sockfd->sockfd, &pkt);
-#ifdef __SERVER
-		pthread_mutex_lock(&half_synchronized_mutex);
-		if(sockfd->half_synchronized_flag){
-			if((pkt->cc_options.cc != CC) || 
-				((pkt->cc_options.cc == CC) && (pkt->cc_options.seg_cc != sockfd->CCnumber))){
-				return 0;
-			}	
-		}
-		pthread_mutex_unlock(&half_synchronized_mutex);
-#endif			
+			
 		sockfd->data = (char *) malloc(pkt->ulen * sizeof(char));
 		sockfd->length = pkt->ulen;
 		sockfd->offset = 0;
