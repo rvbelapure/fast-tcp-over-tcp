@@ -22,8 +22,8 @@
 #define closesocket      close
 #define PROTOPORT        5193        /* default protocol port number */
 
-#define EXPERIMENT_COUNT 10
-#define PAGE_COUNT	 1
+#define EXPERIMENT_COUNT 500
+#define PAGE_COUNT	 11
 
 extern int               errno;
 char   localhost[] = "localhost";    /* default host name            */
