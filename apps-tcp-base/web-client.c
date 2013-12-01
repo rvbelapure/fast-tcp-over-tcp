@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../tcp-fast-open/tcp.h"
+#include "../tcp-base/tcp.h"
 
 #define closesocket      close
 #define PROTOPORT        5193        /* default protocol port number */
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
    srandom(time(NULL));
 
-   FILE *results = fopen("tfo-results.txt", "w");
+   FILE *results = fopen("tcp-results.txt", "w");
    if(results == NULL)
    {
 	   perror("results file");
@@ -110,10 +110,11 @@ int main(int argc, char *argv[])
 
    struct timespec ts;
    struct timeval start, stop, diff;
-   float totaltime, difftime;
+   float difftime, totaltime;
    totaltime = 0;
 
    size_t count = 0;
+
    while(count < EXPERIMENT_COUNT)
    {
 	if(getline(&stream, &stsize, fp) == -1)
@@ -139,12 +140,13 @@ int main(int argc, char *argv[])
 	sprintf(input_buf, "page%ld.html", (random() % PAGE_COUNT));
 	fprintf(stdout, "client : getting %s... ", input_buf);
 	printf("cookie : %lu ", cookie);
-	if (gt_connect(sd, (struct sockaddr *)&sad, sizeof(sad), &cookie, input_buf, strlen(input_buf)) < 0)
+	if (gt_connect(sd, (struct sockaddr *)&sad, sizeof(sad)) < 0)
 	{
 		perror("gt_connect");
 		gt_close(sd);
 		continue;
 	}
+	gt_send(sd, input_buf, strlen(input_buf), 0);
 	while(gt_recv(sd, input_buf, 1024, 0) > 0);
 	fprintf(stdout, "done\n");
 	gt_close(sd);

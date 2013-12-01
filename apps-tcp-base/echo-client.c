@@ -91,7 +91,7 @@ main(int argc, char *argv[])
        exit(1);
      }
 
-   FILE *fp = fopen("input", "r");
+   FILE *fp = fopen("echo-input.txt", "r");
    fread(input_buf, 1, 1024, fp);
    input_buf[1024] =  '\0';
 

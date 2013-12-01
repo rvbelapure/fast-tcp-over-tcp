@@ -1,24 +1,36 @@
 CC = gcc
-CCFLAGS= -g
+CCFLAGS= -g -pthread -lm
 LIBDIR= ../tcp-base
 TCPLIB= ../tcp-base/gt-tcplib.o
 
-all: client server
+all: echo-client echo-server web-client web-server
 
-client: client.o $(TCPLIB)
-	$(CC) $(CCFLAGS) -o client client.o $(TCPLIB) -pthread
+web-client: web-client.o $(TCPLIB)
+	$(CC) web-client.o $(TCPLIB) -o web-client $(CCFLAGS)
 
-server: concurrentserver.o $(TCPLIB)
-	$(CC) $(CCFLAGS) -o server concurrentserver.o $(TCPLIB) -pthread
+web-client.o: web-client.c
+	$(CC) $(CCFLAGS) -c web-client.c
 
-client.o: client.c
-	$(CC) $(CCFLAGS) -c client.c
+web-server: web-server.o $(TCPLIB)
+	$(CC) web-server.o $(TCPLIB) -o web-server $(CCFLAGS)
 
-concurrentserver.o:
-	$(CC) $(CCFLAGS) -c concurrentserver.c 
+web-server.o: web-server.c
+	$(CC) $(CCFLAGS) -c web-server.c
+
+echo-client: echo-client.o $(TCPLIB)
+	$(CC) $(CCFLAGS) -o echo-client echo-client.o $(TCPLIB) -pthread
+
+echo-server: echo-server.o $(TCPLIB)
+	$(CC) $(CCFLAGS) -o echo-server echo-server.o $(TCPLIB) -pthread
+
+echo-client.o: echo-client.c
+	$(CC) $(CCFLAGS) -c echo-client.c
+
+echo-server.o: echo-server.c
+	$(CC) $(CCFLAGS) -c echo-server.c 
 
 $(TCPLIB): $(LIBDIR)/*.c $(LIBDIR)/*.h
 	make -C $(LIBDIR)
 
 clean:
-	rm -f client server *.o
+	rm -f echo-client echo-server web-client web-server *.o
