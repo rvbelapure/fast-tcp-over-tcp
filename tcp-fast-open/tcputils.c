@@ -15,7 +15,7 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 	/* Introduce RTT delays */
 	struct timespec ts;
 	ts.tv_sec = 0;
-	ts.tv_nsec = 0;
+	ts.tv_nsec = 200000000;
 	nanosleep(&ts, 0);
 
 	/* send header first */

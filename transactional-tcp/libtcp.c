@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <limits.h>
+#include <stdio.h>
 
 #include "tcp.h"
 #include "tcputils.h"
@@ -119,7 +120,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	app_sockfd->half_synchronized_flag = 1;
 
 	if(app_sockfd->sockfd < 0)
-		return 1;
+		return NULL;
 
 	sock_descriptor_t * hs_sockfd = (sock_descriptor_t *) malloc(sizeof(sock_descriptor_t));
 	hs_sockfd->sockfd = accept(sockfd->sockfd, addr, addrlen);
@@ -128,7 +129,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	hs_sockfd->length = 0;
 
 	if(hs_sockfd->sockfd < 0)
-		return 1;
+		return NULL;
 
 	struct sockaddr_in *sa = (struct sockaddr_in *) &addr;
 
@@ -145,7 +146,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	pthread_t handshake_thread;
 
 	pthread_create(&handshake_thread, NULL, gt_accept_handshake_thread, hs_params);
-	return 0;
+	return NULL;
 }
 
 ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flags) {
@@ -225,14 +226,14 @@ int gt_close(sock_descriptor_t *sockfd)
 
 void * gt_connect_handshake_thread(void * arguments)
 {	
-
+	pthread_detach(pthread_self());
 	thread_args_t * args = (thread_args_t *) arguments;
 
 	tcp_packet_t *syn_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
 	syn_pkt->ulen = args->ulen;
 	syn_pkt->ubuf = (char *) malloc(args->ulen * sizeof(char));
 	memcpy(syn_pkt->ubuf, args->udata, args->ulen);
-	syn_pkt->cookie = args->cookie; /*cookie is unused for T/TCP*/
+	syn_pkt->cookie = *args->cookie; /*cookie is unused for T/TCP*/
 	syn_pkt->uflags = 0;
 	syn_pkt->gt_flags |= SYN_FLAG;
 	//if(syn_pkt->cookie)	syn_pkt->gt_flags |= COOKIE_REQ_FLAG;
@@ -300,6 +301,7 @@ void * gt_connect_handshake_thread(void * arguments)
 }
 
 void * gt_accept_handshake_thread(void *arguments){
+	pthread_detach(pthread_self());
 	thread_args_t *hs_param = (thread_args_t *) arguments;
 	//recv syn + data packet
 	tcp_packet_t *syn_pkt = NULL;
@@ -318,6 +320,12 @@ void * gt_accept_handshake_thread(void *arguments){
 	hs_param->server_app_args->data = (char *) malloc(syn_pkt->ulen * sizeof(char));
 	memcpy(hs_param->server_app_args->data, syn_pkt->ubuf, syn_pkt->ulen);
 	hs_param->server_app_args->datalen = syn_pkt->ulen;	
+
+        struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 26000000;          /* 0.026 x 10e9 */
+	nanosleep(&ts, NULL);
+
 
 	/* T/TCP stuff */
 	uint32_t CCrecv = 0, CCsend;

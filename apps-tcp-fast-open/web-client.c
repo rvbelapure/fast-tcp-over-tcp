@@ -22,7 +22,7 @@
 #define closesocket      close
 #define PROTOPORT        5193        /* default protocol port number */
 
-#define EXPERIMENT_COUNT 10
+#define EXPERIMENT_COUNT 100
 #define PAGE_COUNT	 11
 
 extern int               errno;

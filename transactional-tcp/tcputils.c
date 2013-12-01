@@ -11,6 +11,12 @@ size_t gt_send_size(int sockfd, tcp_packet_t *packet)
 	/* send size of data. We don't need to send sizeof header as its known at compile time */
 	send(sockfd, (void *) &(packet->ulen), sizeof(size_t), 0);
 
+        struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 0;
+	nanosleep(&ts, 0);
+					
+
 	/* send header first */
 	tosend =  sizeof(tcp_packet_t);
 	totalsent = 0;
