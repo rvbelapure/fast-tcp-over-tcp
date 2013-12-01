@@ -12,10 +12,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
-#include "../tcp-base/tcp.h"
-
-#define __SERVER
+#include "../transactional-tcp/tcp.h"
 
 void * serverthread(void * parm);       /* thread function prototype    */
 
@@ -81,6 +80,8 @@ main (int argc, char *argv[])
                       exit (1);
      }
 
+     gt_init();
+
      /* Map TCP transport protocol name to protocol number */
      
      if ( ((int)(ptrp = getprotobyname("tcp"))) == 0)  {
@@ -97,7 +98,8 @@ main (int argc, char *argv[])
 
      /* Bind a local address to the socket */
      if (gt_bind(sd, (struct sockaddr *)&sad, sizeof (sad)) < 0) {
-                        fprintf(stderr,"bind failed\n");
+          perror("bind failed");
+                        //fprintf(stderr,"bind failed\n");
                         exit(1);
      }
 
@@ -109,30 +111,33 @@ main (int argc, char *argv[])
 
      alen = sizeof(cad);
 
+     server_app_args_t* server_app_args = (server_app_args_t*) malloc(sizeof(server_app_args_t));
+     server_app_args -> app_func_params = sd;     
+
      /* Main server loop - accept and handle requests */
      fprintf( stderr, "Server up and running.\n");
      while (1) {
 
          printf("SERVER: Waiting for contact ...\n");
          
-         if (  (sd2=gt_accept(sd, (struct sockaddr *)&cad, &alen)) < 0) {
-	                      fprintf(stderr, "accept failed\n");
-                              exit (1);
+         if (gt_accept(sd, (struct sockaddr *)&cad, &alen,(void*) serverthread, server_app_args) < 0) {
+            fprintf(stderr, "accept failed\n");
+            exit (1);
+         }
 	 }
-	 pthread_create(&tid, NULL, serverthread, (void *) sd2 );
-     }
-     close(sd);
+     gt_close(sd);
 }
 
 
 void * serverthread(void * parm)
 {
+   server_app_args_t *args = (server_app_args_t *) parm;
    sock_descriptor_t* tsd;
    int tvisits;
    char     buf[100];           /* buffer for string the server sends */
    char output_buf[1024];
 
-   tsd = (sock_descriptor_t*) parm;
+   tsd = (sock_descriptor_t*) args->app_sockfd;
 
    pthread_mutex_lock(&mut);
         tvisits = ++visits;
@@ -142,7 +147,9 @@ void * serverthread(void * parm)
 	   tvisits, tvisits==1?".":"s.");
 
    printf("SERVER thread: %s", buf);
-   int n = gt_recv(tsd, output_buf, 1024, 0);
+   //int n = gt_recv(tsd, output_buf, 1024, 0);
+   int tocopy = (args->datalen < 1204) ? args->datalen : 1024;
+   memcpy(output_buf, args->data, tocopy);   
    printf("Server received:%s\n", output_buf);
 
    gt_send(tsd,buf,strlen(buf),0);
