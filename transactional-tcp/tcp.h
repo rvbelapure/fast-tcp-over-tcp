@@ -72,7 +72,7 @@ typedef struct _thread_args
 	sock_descriptor_t *app_sockfd;
 	sock_descriptor_t *hs_sockfd;
 	unsigned long client_addr; //Used for T/TCP to index into cache	
-	unsigned long cookie; //Unused for T/TCP
+	unsigned long *cookie; //Unused for T/TCP
 	uint32_t CCnumber; //Used for T/TCP
 	char *udata;
 	ssize_t ulen;
@@ -86,7 +86,6 @@ int gt_listen(sock_descriptor_t * sockfd, int backlog);
 int gt_bind(sock_descriptor_t * sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen, 
 	unsigned long *cookie, char * udata, ssize_t ulen);
-//sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen);
 sock_descriptor_t *gt_accept(sock_descriptor_t * sockfd, struct sockaddr *addr, socklen_t *addrlen, 
 	void *app_func, server_app_args_t *server_app_args);
 ssize_t gt_send(sock_descriptor_t * sockfd, const void *buf, size_t len, int flags);

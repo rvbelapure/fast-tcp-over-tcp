@@ -23,7 +23,7 @@ int *addr_list;
 
 pthread_mutex_t ccgen_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t addr_list_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_rwlock_t half_synchronized_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_rwlock_t half_synchronized_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void gt_init(){
 
@@ -50,9 +50,9 @@ sock_descriptor_t * gt_socket(int domain, int type, int protocol)
 	sockfd->offset = 0;
 	sockfd->length = 0;
 
-//Added for T/TCP
-	//sockfd->CCrecv = 0;
-	//sockfd->CCsend = 0;
+	//Added for T/TCP
+	sockfd->CCnumber = 0;
+	sockfd->half_synchronized_flag = 0;
 
 	return sockfd;
 }
@@ -60,13 +60,11 @@ sock_descriptor_t * gt_socket(int domain, int type, int protocol)
 int gt_listen(sock_descriptor_t *sockfd, int backlog) {
 	return listen(sockfd->sockfd, backlog);
 }
-int gt_bind(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen) 
-{
+int gt_bind(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	return bind(sockfd->sockfd, addr, addrlen);
 }
 
 int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t addrlen, 
-			/*const void *buf, ssize_t ulen, int flags*/
 			unsigned long *cookie, char * udata, ssize_t ulen) { /*cookie is unused for T/TCP*/
 	/* Create connection to socket owned by application thread of server.
 	 * This socket will be returned to client application.*/	
@@ -92,8 +90,8 @@ int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t
 	thread_args_t *args = (thread_args_t *) calloc(1, sizeof(thread_args_t));
 	args->app_tid = pthread_self();
 	args->app_sockfd = sockfd;
-	args->client_addr = (sa->sin_addr).s_addr;
 	args->hs_sockfd = hs;
+	args->client_addr = (sa->sin_addr).s_addr;	
 	args->cookie = cookie; /*cookie is unused for T/TCP*/
 	args->CCnumber = CCnumber;
 	args->ulen = ulen;
@@ -102,7 +100,7 @@ int gt_connect(sock_descriptor_t *sockfd, const struct sockaddr *addr, socklen_t
 	pthread_create(&hs_thread, NULL, gt_connect_handshake_thread, args);
 
 	sockfd->CCnumber = CCnumber; //Added for T/TCP
-	//New connections are always half-synchronized (assuming only T/TCP applications would be run)
+	//New connections are always half-synchronized (assuming applications always want to use T/TCP)
 	sockfd->half_synchronized_flag = 1; //Added for T/TCP
 
 	return 0;
@@ -117,7 +115,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	app_sockfd->data = NULL;
 	app_sockfd->offset = 0;
 	app_sockfd->length = 0;
-	//New connections are always half-synchronized (assuming only T/TCP applications would be run)
+	//New connections are always half-synchronized (assuming applications always want to use T/TCP)
 	app_sockfd->half_synchronized_flag = 1;
 
 	if(app_sockfd->sockfd < 0)
@@ -135,6 +133,7 @@ sock_descriptor_t * gt_accept(sock_descriptor_t *sockfd, struct sockaddr *addr, 
 	struct sockaddr_in *sa = (struct sockaddr_in *) &addr;
 
 	server_app_args->tfo_aware_flag = 0; //Should be 0 for TTCP?
+	server_app_args->app_sockfd = app_sockfd;
 	//Thread data set
 	thread_args_t *hs_params = (thread_args_t *) malloc(sizeof(thread_args_t));
 	hs_params->hs_sockfd = hs_sockfd;
@@ -159,16 +158,18 @@ ssize_t gt_send(sock_descriptor_t *sockfd, const void *buf, size_t len, int flag
 	send_pkt->uflags = flags;
 	send_pkt->gt_flags = 0;
 #ifdef __CLIENT
-	pthread_rwlock_rdlock(&half_synchronized_rwlock);
+	pthread_mutex_lock(&half_synchronized_mutex);
 	if(sockfd->half_synchronized_flag){
 		cc_options_t cc_options;
 		cc_options.cc = CC;
 		cc_options.seg_cc = sockfd->CCnumber;
 		send_pkt->cc_options = cc_options;
 	}
-	pthread_rwlock_unlock(&half_synchronized_rwlock);
+	pthread_mutex_unlock(&half_synchronized_mutex);
 #endif	
-	return gt_send_size(sockfd->sockfd,send_pkt);
+	ssize_t ret = gt_send_size(sockfd->sockfd,send_pkt);
+	free(send_pkt);
+	return ret;	
 }
 
 ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
@@ -176,6 +177,7 @@ ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
 		return -1;	
 	/* check if we have anything to return from buffer */
 	ssize_t available = sockfd->length - sockfd->offset;
+	ssize_t retval;	
 	if(available <= 0)
 	{
 		/* we don't have any data in the buffer. 
@@ -183,19 +185,27 @@ ssize_t gt_recv(sock_descriptor_t *sockfd, void *buf, size_t len, int flags) {
 		tcp_packet_t *pkt = NULL;
 		gt_recv_size(sockfd->sockfd, &pkt);
 #ifdef __SERVER
-		pthread_rwlock_rdlock(&half_synchronized_rwlock);
+		pthread_mutex_lock(&half_synchronized_mutex);
 		if(sockfd->half_synchronized_flag){
 			if((pkt->cc_options.cc != CC) || 
 				((pkt->cc_options.cc == CC) && (pkt->cc_options.seg_cc != sockfd->CCnumber))){
 				return 0;
 			}	
 		}
-		pthread_rwlock_unlock(&half_synchronized_rwlock);
+		pthread_mutex_unlock(&half_synchronized_mutex);
 #endif			
 		sockfd->data = (char *) malloc(pkt->ulen * sizeof(char));
 		sockfd->length = pkt->ulen;
 		sockfd->offset = 0;
 		memcpy(sockfd->data, pkt->ubuf, pkt->ulen);
+		if(retval <= 0)
+		{
+			free(sockfd->data);
+			sockfd->data = NULL;
+			sockfd->offset = 0;
+			sockfd->length = 0;
+			return retval;
+		}		
 	}
 
 	/* we can return something from the buffer now.*/
@@ -272,9 +282,11 @@ void * gt_connect_handshake_thread(void * arguments)
 		((syn_ack_pkt->cc_echo_options.cc == CC_ECHO) && (syn_ack_pkt->cc_echo_options.seg_cc != CCsend)))
 	{
 		/* Failed handshake - close the connection(s) and die */
-		gt_close(&args->app_sockfd);
-		gt_close(&args->hs_sockfd);
+		gt_close(args->app_sockfd);
+		gt_close(args->hs_sockfd);
 		free(args);
+		free(syn_pkt);
+		free(syn_ack_pkt);		
 		pthread_exit(NULL);
 	}
 	CCrecv = syn_ack_pkt->cc_options.seg_cc;
@@ -291,14 +303,17 @@ void * gt_connect_handshake_thread(void * arguments)
 	ack_pkt->gt_flags |= ACK_FLAG;
 	gt_send_size(args->hs_sockfd->sockfd, (void *)ack_pkt);
 
-	pthread_rwlock_rdlock(&half_synchronized_rwlock);
+	pthread_mutex_lock(&half_synchronized_mutex);
 	args->app_sockfd->half_synchronized_flag = 0;
-	pthread_rwlock_unlock(&half_synchronized_rwlock);
+	pthread_mutex_unlock(&half_synchronized_mutex);
 		
 	gt_close(args->hs_sockfd);
 
 	/* handshake successful - die silently */
 	free(args);
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);	
 	pthread_exit(NULL);
 }
 
@@ -313,6 +328,7 @@ void * gt_accept_handshake_thread(void *arguments){
 		gt_close(hs_param->app_sockfd);
 		gt_close(hs_param->hs_sockfd);
 		free(hs_param);
+		free(syn_pkt);
 		pthread_exit(NULL);
 	}
 
@@ -384,39 +400,46 @@ void * gt_accept_handshake_thread(void *arguments){
 			pthread_kill(app_thread, SIGUSR1);
 		gt_close(hs_param->hs_sockfd);
 		free(hs_param);
+		free(syn_pkt);
+		free(syn_ack_pkt);
+		free(ack_pkt);		
 		pthread_exit(NULL);
 	}
 
 	/*Normal TCP processing if TAO test had failed*/
 	if(tao_test_ok == 0){
-		pthread_t app_thread;
 
 		//start sending data in parallel swapn a send receive thread
 		pthread_create(&app_thread, NULL, hs_param->app_func, hs_param->server_app_args);
 	}
-	
-	//would assert fail means handshake failed ???
-	//have to send signal to the app_thread in failed case and then continue
 
-	pthread_rwlock_rdlock(&half_synchronized_rwlock);
+	pthread_mutex_lock(&half_synchronized_mutex);
 	hs_param->app_sockfd->half_synchronized_flag = 0;
-	pthread_rwlock_unlock(&half_synchronized_rwlock);	
+	pthread_mutex_unlock(&half_synchronized_mutex);	
 
 	gt_close(hs_param->hs_sockfd);
 
 	//malloc cleanup
 	free(hs_param);
+	free(syn_pkt);
+	free(syn_ack_pkt);
+	free(ack_pkt);	
 	pthread_exit(NULL); // all good handshake is sucessful
 }
 
 uint32_t cc_gen(){
+	uint32_t CCgen_local;
 	pthread_mutex_lock(&ccgen_mutex);
-	if(CCgen == MAX_UINT_32)
+	if(CCgen == MAX_UINT_32){
 		CCgen = 1;
-	else 
+		CCgen_local = CCgen;
+	}
+	else{ 
 		CCgen++;
+		CCgen_local = CCgen;
+	}
 	pthread_mutex_unlock(&ccgen_mutex);
-	return CCgen;
+	return CCgen_local;
 }
 
 uint32_t get_client_id(unsigned long addr){
