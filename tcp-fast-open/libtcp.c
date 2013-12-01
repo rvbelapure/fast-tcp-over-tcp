@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <limits.h>
+#include <time.h>
 
 #include "tcp.h"
 #include "tcputils.h"
@@ -194,6 +195,7 @@ int gt_close(sock_descriptor_t *sockfd)
 
 void * gt_connect_handshake_thread(void * arguments)
 {
+	pthread_detach(pthread_self());
 	thread_args_t * args = (thread_args_t *) arguments;
 
 	tcp_packet_t *syn_pkt = (tcp_packet_t *)calloc(1, sizeof(tcp_packet_t));
@@ -258,6 +260,7 @@ void * gt_connect_handshake_thread(void * arguments)
 
 
 void * gt_accept_handshake_thread(void *arguments){
+	pthread_detach(pthread_self());
 	thread_args_t *hs_param = (thread_args_t *) arguments;
 
 	//recv syn + data packet
@@ -277,6 +280,11 @@ void * gt_accept_handshake_thread(void *arguments){
 	hs_param->server_app_args->data = (char *) malloc(syn_pkt->ulen * sizeof(char));
 	memcpy(hs_param->server_app_args->data, syn_pkt->ubuf, syn_pkt->ulen);
 	hs_param->server_app_args->datalen = syn_pkt->ulen;
+	
+	struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 28000000;		/* 0.028 x 10e9 */
+	nanosleep(&ts, NULL);
 	
 	/* SYN + Data + Cookie packet received */
 	pthread_t app_thread;

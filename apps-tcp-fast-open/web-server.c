@@ -128,6 +128,7 @@ main (int argc, char *argv[])
 
 void * serverthread(void * parm)
 {
+   pthread_detach(pthread_self());
    server_app_args_t *args = (server_app_args_t *) parm;
    sock_descriptor_t* tsd;
    int tvisits;

@@ -22,7 +22,7 @@
 #define closesocket      close
 #define PROTOPORT        5193        /* default protocol port number */
 
-#define EXPERIMENT_COUNT 500
+#define EXPERIMENT_COUNT 10
 #define PAGE_COUNT	 11
 
 extern int               errno;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 	ts.tv_nsec = (t - (time_t) t) * 1000000000;
 	free(stream);
 	stream = NULL;
-	nanosleep(&ts, NULL);
+//	nanosleep(&ts, NULL);
 
 	gettimeofday(&start, NULL);
 	sd = gt_socket(PF_INET, SOCK_STREAM, ptrp->p_proto);

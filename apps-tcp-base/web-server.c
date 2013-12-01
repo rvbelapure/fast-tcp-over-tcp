@@ -128,6 +128,7 @@ main (int argc, char *argv[])
 
 void * serverthread(void * parm)
 {
+   pthread_detach(pthread_self());
    sock_descriptor_t* tsd = (sock_descriptor_t *) parm;
    int tvisits;
    char     buf[1024];           /* buffer for string the server sends */
