@@ -28,8 +28,9 @@ To compile the applications, just run "make" in top level directory.
 
 
 Resources:
-1. TCP Fast Open
-	- http://research.google.com/pubs/pub37517.html
 
-2. T/TCP : TCP Extensions for Transactions Functional Specification
-	- http://tools.ietf.org/html/rfc1644.html
+* TCP Fast Open - 
+	http://research.google.com/pubs/pub37517.html
+
+* T/TCP : TCP Extensions for Transactions Functional Specification -
+	http://tools.ietf.org/html/rfc1644.html
