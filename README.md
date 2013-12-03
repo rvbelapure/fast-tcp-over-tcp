@@ -25,3 +25,11 @@ This provides an implementation of TCP Fast Open and Transactional TCP using a
 base TCP which itself acts as an overlay over existing networks.
 
 To compile the applications, just run "make" in top level directory.
+
+
+Resources:
+1. TCP Fast Open
+	- http://research.google.com/pubs/pub37517.html
+
+2. T/TCP : TCP Extensions for Transactions Functional Specification
+	- http://tools.ietf.org/html/rfc1644.html

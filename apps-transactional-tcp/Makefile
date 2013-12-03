@@ -1,6 +1,5 @@
 CC = gcc
 CCFLAGS= -g -pthread -lm
-CCFLAGS= -pthread -lm
 LIBDIR= ../transactional-tcp
 TCPLIB= ../transactional-tcp/gt-tcplib.o
 

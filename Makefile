@@ -1,6 +1,6 @@
 TCPAPPS= apps-tcp-base
 TFOAPPS= apps-tcp-fast-open
-TTCPAPPS = apps-tcp-base
+TTCPAPPS = apps-transactional-tcp
 
 TCPBASEDIR= tcp-base
 TFODIR= tcp-fast-open
